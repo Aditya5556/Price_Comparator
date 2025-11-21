@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quick Price Comparator</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Load Inter font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            /* Funky gradient background */
+            background-image: linear-gradient(to top, #f3e8ff 0%, #ffffff 100%);
+            background-attachment: fixed;
+        }
+        /* Simple spinner */
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            /* Matching the new theme */
+            border-left-color: #6d28d9; /* violet-700 */
+            animation: spin 1s ease infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        /* Cart button pulse */
+        .pulse-once {
+            animation: pulse-once 0.5s ease-out;
+        }
+        @keyframes pulse-once {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+        /* Custom tooltip for missing items */
+        .tooltip {
+            position: relative;
+            display: inline-block;
+        }
+        .tooltip .tooltiptext {
+            visibility: hidden;
+            width: 220px;
+            background-color: #555;
+            color: #fff;
+            text-align: left;
+            border-radius: 6px;
+            padding: 8px;
+            position: absolute;
+            z-index: 10;
+            bottom: 125%; /* Position above the text */
+            left: 50%;
+            margin-left: -110px; /* Center it */
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 0.75rem; /* 12px */
+            line-height: 1.5;
+            pointer-events: none;
+        }
+        .tooltip:hover .tooltiptext {
+            visibility: visible;
+            opacity: 1;
+        }
+    </style>
+</head>
+<body class="min-h-screen p-4 sm:p-6">
+    <div class="bg-white p-6 sm:p-8 rounded-2xl shadow-2xl w-full max-w-3xl mx-auto border border-gray-100">
+        
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-4xl sm:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-500 mb-2">
+                Quick Price Comparator
+            </h1>
+            <p class="text-gray-600 mt-2 text-base sm:text-lg">Find the best prices. Fast.</p>
+        </div>
+
+        <!-- NEW: Cart Summary Area -->
+        <div id="cart-summary-container" class="mb-6 hidden">
+            <h2 class="text-2xl font-bold text-gray-900 mb-3">Your Cart</h2>
+            <div id="cart-summary" class="p-5 bg-purple-50 border border-purple-200 rounded-2xl space-y-4 shadow-inner">
+                
+                <!-- Total Cart Value -->
+                <div id="total-cart-value-display" class="text-xl font-bold text-gray-900">
+                    Total Cart Value: ₹0.00
+                </div>
+
+                <!-- NEW: Cart Items List -->
+                <div id="cart-items-container" class="pt-4 border-t border-purple-200">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-2">Cart Items</h3>
+                    <div id="cart-items-list" class="space-y-2 max-h-48 overflow-y-auto">
+                        <!-- JS will populate this -->
+                    </div>
+                </div>
+                
+                <!-- Platform Subtotals -->
+                <div id="platform-totals-container" class="pt-4 border-t border-purple-200">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-2">Platform Subtotals</h3>
+                    <div id="platform-totals-list" class="space-y-2">
+                        <!-- JS will populate this -->
+                    </div>
+                </div>
+
+                <!-- Suggestion Box -->
+                <div id="suggestion-box" class="hidden p-4 bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-lg text-sm">
+                    <!-- JS will populate this -->
+                </div>
+
+                <!-- Final Compare Button -->
+                <button id="compare-cart-button" class="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-semibold py-3 px-6 rounded-xl shadow-lg hover:from-purple-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition duration-200 ease-in-out">
+                    Find Cheapest Full Cart
+                </button>
+                
+                <!-- Full Cart Comparison Results -->
+                <div id="full-cart-comparison-box" class="hidden pt-4 border-t border-purple-200">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-2">Full Cart Comparison</h3>
+                    <div id="full-cart-comparison-list" class="space-y-2">
+                        <!-- JS will populate this -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Search Form -->
+        <div class="space-y-4">
+            <div>
+                <label for="product" class="block text-sm font-medium text-gray-700 mb-1">Product Name</label>
+                <input type="text" id="product" class="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 transition-shadow" placeholder="e.g., Parle-G Biscuit 100g">
+            </div>
+            <div>
+                <label for="location" class="block text-sm font-medium text-gray-700 mb-1">Your Full Address</label>
+                <input type="text" id="location" class="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 transition-shadow" placeholder="e.g., 123 Main St, Lucknow, 226010">
+            </div>
+            <button id="search-button" class="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold py-4 px-6 rounded-xl shadow-lg hover:from-purple-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition duration-200 ease-in-out transform hover:scale-105">
+                Compare Prices
+            </button>
+        </div>
+
+        <!-- Results Area -->
+        <div id="results-container" class="mt-8">
+            <!-- Disclaimer -->
+            <div id="disclaimer" class="hidden p-3 bg-yellow-50 text-yellow-800 border border-yellow-200 rounded-xl text-sm mb-4">
+                <strong>Note:</strong> Results are based on web searches and may not be 100% live. Prices and stock can change.
+            </div>
+
+            <!-- Loading Spinner -->
+            <div id="loading-spinner" class="hidden flex-col items-center justify-center text-center py-8">
+                <div class="spinner"></div>
+                <p class="text-gray-600 mt-3">Searching for the best deals...</p>
+            </div>
+            
+            <!-- Error Message -->
+            <div id="error-message" class="hidden p-4 bg-red-100 text-red-700 rounded-xl"></div>
+
+            <!-- Content Area -->
+            <div id="content" class="space-y-6">
+                <!-- Summary from AI (Fallback) -->
+                <div id="summary-section" class="hidden">
+                    <h2 class="text-xl font-semibold text-gray-800 mb-3">Summary</h2>
+                    <div id="summary-text" class="p-4 bg-purple-50 border border-purple-200 text-gray-800 rounded-xl whitespace-pre-wrap"></div>
+                </div>
+
+                <!-- Beautified Price Results -->
+                <div id="results-section" class="hidden">
+                    <h2 class="text-2xl font-bold text-gray-900 mb-3">Price Results</h2>
+                    <div id="results-list" class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <!-- Beautified cards will be injected here -->
+                    </div>
+                </div>
+
+                <!-- Sources -->
+                <div id="sources-section" class="hidden">
+                    <h2 class="text-2xl font-bold text-gray-900 mb-3">Sources & Platforms</h2>
+                    <div id="sources-list" class="space-y-3">
+                        <!-- Sources will be injected here by JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script type="module">
+        // --- Gemini API Configuration ---
+        const apiKey = "AIzaSyDOqlG7OocwkK428JISrCOU-9aNL9l4PY4 "; // Provided by the environment
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+
+        // --- DOM Elements ---
+        const productInput = document.getElementById('product');
+        const locationInput = document.getElementById('location');
+        const searchButton = document.getElementById('search-button');
+        const loadingSpinner = document.getElementById('loading-spinner');
+        const errorMessage = document.getElementById('error-message');
+        const summarySection = document.getElementById('summary-section');
+        const summaryText = document.getElementById('summary-text');
+        const resultsSection = document.getElementById('results-section');
+        const resultsList = document.getElementById('results-list');
+        const sourcesSection = document.getElementById('sources-section');
+        const sourcesList = document.getElementById('sources-list');
+        const disclaimer = document.getElementById('disclaimer');
+
+        // --- Cart DOM Elements ---
+        const cartSummaryContainer = document.getElementById('cart-summary-container');
+        const cartSummary = document.getElementById('cart-summary');
+        const totalCartValueDisplay = document.getElementById('total-cart-value-display');
+        const platformTotalsList = document.getElementById('platform-totals-list');
+        const suggestionBox = document.getElementById('suggestion-box');
+        const compareCartButton = document.getElementById('compare-cart-button');
+        const fullCartComparisonBox = document.getElementById('full-cart-comparison-box');
+        const fullCartComparisonList = document.getElementById('full-cart-comparison-list');
+
+        // --- State ---
+        let cart = []; // Array of product objects { id, productName, platform, price, priceFloat, size, link }
+        // "Memory" of all products found in searches
+        let allFoundProducts = []; // Array of product objects, same as cart
+
+        // --- Event Listeners ---
+        try {
+            searchButton.addEventListener('click', handleSearch);
+            productInput.addEventListener('keydown', (e) => e.key === 'Enter' && handleSearch());
+            locationInput.addEventListener('keydown', (e) => e.key === 'Enter' && handleSearch());
+            compareCartButton.addEventListener('click', handleFullCartCompare);
+        } catch (e) {
+            console.error("Error adding event listeners on load:", e);
+            showError("A critical error occurred on page load. Please reload. Error: " + e.message);
+        }
+
+        /**
+         * Main function to handle the search logic
+         */
+        async function handleSearch() {
+            const product = productInput.value.trim();
+            const location = locationInput.value.trim();
+
+            if (!product) {
+                showError("Please enter a product name.");
+                return;
+            }
+            if (!location) {
+                showError("Please enter your full address for delivery results.");
+                return;
+            }
+            
+            clearResults();
+            showLoading(true);
+
+            try {
+                // This query is designed to "hint" at the search to find carousels
+                const userQuery = `"${product}" "${location}" prices Blinkit Zepto Swiggy Instamart`;
+                
+                const systemPrompt = `
+                    You are a price comparison assistant. Find items based on the user's query.
+                    Your response MUST be a JSON array of objects.
+                    Each object must have 5 properties:
+                    1. "platform": (string) e.g., "Blinkit", "Zepto".
+                    2. "productName": (string) The full product name.
+                    3. "price": (string) The price, e.g., "₹50", "₹26", "Out of Stock", "N/A".
+                    4. "link": (string) The direct URL to the product. If no link is found, use "null".
+                    5. "size": (string) The product size/weight, e.g., "100g", "200ml", "1 pack", "N/A".
+                    
+                    **CRITICAL RULE: YOU MUST RETURN EVERY SINGLE PRODUCT YOU FIND.**
+                    Pay close attention to "Popular products" or "Shopping" carousels in the search results and extract ALL items from them.
+                    You MUST find the "size" to differentiate products. This is as important as the price.
+                    The user's app will do all the filtering. Do not filter anything.
+                    If no prices are found, return an empty array [].
+                    Do not add any text before or after the JSON array.
+                `;
+
+                const result = await callGeminiAPI_Search(userQuery, systemPrompt);
+                
+                if (result) {
+                    // PASS THE ORIGINAL SEARCH TERM (product)
+                    displayResults(result, product);
+                } else {
+                    showError("No valid response from the API.");
+                }
+
+            } catch (error)
+            {
+                console.error("Error during search:", error);
+                showError("An error occurred while fetching prices. Please check the console and try again.");
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        /**
+         * Calls the Gemini API with search/grounding
+         */
+        async function callGeminiAPI_Search(userQuery, systemPrompt, retries = 3, delay = 1000) {
+            
+            const payload = {
+                contents: [{ parts: [{ text: userQuery }] }],
+                tools: [{ "google_search": {} }],
+                systemInstruction: {
+                    parts: [{ text: systemPrompt }]
+                },
+            };
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    const errorBody = await response.text();
+                    console.error("API Error Body:", errorBody);
+                    throw new Error(`API Error: ${response.status} ${response.statusText}`);
+                }
+
+                return await response.json();
+
+            } catch (error) {
+                if (retries > 0) {
+                    await new Promise(res => setTimeout(res, delay));
+                    return callGeminiAPI_Search(userQuery, systemPrompt, retries - 1, delay * 2);
+                } else {
+                    console.error("API call failed after retries:", error);
+                    throw error;
+                }
+            }
+        }
+
+        /**
+         * Extracts a JSON array string from a larger text response
+         */
+        function extractJson(response) {
+            if (!response) return null;
+            // ROBUST: Find the first JSON array in the string
+            // This regex finds an array [...] that contains at least one object {...}
+            const match = response.match(/\[\s*\{[\s\S]*?\}\s*\]/);
+            if (match && match[0]) {
+                return match[0];
+            }
+            return null;
+        }
+
+        /**
+         * Renders the results in the UI
+         */
+        function displayResults(result, searchTerm) { // <-- ADD searchTerm
+            const candidate = result.candidates?.[0];
+            
+            if (!candidate || !candidate.content || !candidate.content.parts) {
+                showError("No results found. Try a different search.");
+                return;
+            }
+
+            const text = candidate.content.parts[0].text;
+            let priceData = [];
+            
+            if (text) {
+                const jsonString = extractJson(text);
+                if (jsonString) {
+                    try {
+                        priceData = JSON.parse(jsonString);
+                        if (!Array.isArray(priceData)) {
+                             throw new Error("Parsed data is not an array.");
+                        }
+
+                        if (priceData.length > 0) {
+                            // Add new products to our "memory", now with the searchTerm
+                            priceData.forEach(item => processFoundProduct(item, searchTerm));
+                            
+                            renderPriceCards(priceData);
+                            resultsSection.classList.remove('hidden');
+                            disclaimer.classList.remove('hidden');
+                        } else {
+                            summaryText.innerText = "The search returned no items.";
+                            summarySection.classList.remove('hidden');
+                        }
+                    } catch (e) {
+                        console.error("Failed to parse JSON response:", e);
+                        console.error("Raw text from AI:", text);
+                        summaryText.innerText = "Received an unexpected response from the AI. Showing raw text:\n\n" + text;
+                        summarySection.classList.remove('hidden');
+                    }
+                } else {
+                    summaryText.innerText = "Could not find any structured price data. Showing raw text:\n\n" + text;
+                    summarySection.classList.remove('hidden');
+                }
+            }
+            
+            // Display citation sources
+            const groundingMetadata = candidate.groundingMetadata;
+            if (groundingMetadata && groundingMetadata.groundingAttributions) {
+                const sources = groundingMetadata.groundingAttributions
+                    .map(attr => attr.web)
+                    .filter(web => web && web.uri && web.title);
+                
+                if (sources.length > 0) {
+                    sourcesList.innerHTML = '';
+                    sources.forEach(source => {
+                        const sourceElement = document.createElement('a');
+                        sourceElement.href = source.uri;
+                        sourceElement.target = '_blank';
+                        sourceElement.rel = 'noopener noreferrer';
+                        sourceElement.className = "block p-4 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 hover:shadow-md transition duration-150";
+                        
+                        const displayTitle = source.title.length > 80 ? source.title.substring(0, 80) + '...' : source.title;
+                        const displayUri = source.uri.replace(/^https?:\/\//, '').split('/')[0];
+                        
+                        sourceElement.innerHTML = `
+                            <span class="font-semibold text-indigo-700">${displayTitle}</span>
+                            <span class="block text-sm text-gray-500 mt-1">${displayUri}</span>
+                        `;
+                        sourcesList.appendChild(sourceElement);
+                    });
+                    sourcesSection.classList.remove('hidden');
+                }
+            }
+            
+            if (priceData.length === 0 && (!groundingMetadata || !groundingMetadata.groundingAttributions || groundingMetadata.groundingAttributions.length === 0)) {
+                showError("No summary or sources were found for this product.");
+            }
+        }
+        
+        /**
+         * Helper function to create a product link if valid
+         */
+        function createProductLink(item) {
+            // DEFENSIVE: Check for null/undefined item
+            const productName = item?.productName || "Unknown Product";
+            const link = item?.link;
+
+            if (link && (link.startsWith('http://') || link.startsWith('https://'))) {
+                return `<a href="${link}" target="_blank" rel="noopener noreferrer" class="text-gray-900 font-semibold hover:text-purple-600 hover:underline" title="Visit product page">${productName}</a>`;
+            }
+            return `<span class="text-gray-900 font-semibold">${productName}</span>`;
+        }
+
+        /**
+         * Renders the beautified price cards
+         */
+        function renderPriceCards(data) {
+            resultsList.innerHTML = '';
+            
+            const platformColors = {
+                "blinkit": "bg-orange-100 text-orange-800",
+                "zepto": "bg-purple-100 text-purple-800",
+                "swiggy": "bg-pink-100 text-pink-800",
+                "instamart": "bg-pink-100 text-pink-800",
+                "bigbasket": "bg-green-100 text-green-800",
+                "default": "bg-gray-100 text-gray-800"
+            };
+            
+            data.forEach(item => {
+                // DEFENSIVE: Check for null/undefined properties
+                const platform = item?.platform || "unknown";
+                const price = item?.price || "N/A";
+                const size = item?.size || "N/A";
+                
+                const card = document.createElement('div');
+                card.className = "bg-white p-5 rounded-2xl shadow-lg border border-gray-100 flex space-x-4 transition-transform transform hover:scale-105";
+                
+                const platformKey = platform.toLowerCase().split(' ')[0];
+                const colorClass = platformColors[platformKey] || platformColors.default;
+
+                // Icon
+                const iconHtml = `
+                    <div class="flex-shrink-0 w-12 h-12 ${colorClass} rounded-full flex items-center justify-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 10.5V6a3.75 3.75 0 1 0-7.5 0v4.5m11.356-1.993 1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 0 1-1.12-1.243l1.264-12A1.125 1.125 0 0 1 5.513 7.5h12.974c.576 0 1.059.435 1.119 1.007Z" />
+                        </svg>
+                    </div>
+                `;
+                
+                // Check if item is already in cart
+                const isInCart = cart.some(cartItem => cartItem.id === item.id);
+
+                // Content
+                const contentHtml = `
+                    <div class="flex-1 min-w-0">
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="inline-block px-3 py-1 text-xs font-semibold ${colorClass} rounded-full">${platform}</span>
+                            <!-- NEW: Display Size -->
+                            <span class="text-xs font-medium text-gray-500">${size}</span>
+                        </div>
+                        ${createProductLink(item)}
+                        <p class="text-3xl font-bold text-indigo-700 mt-1">${price}</p>
+                    </div>
+                `;
+                
+                // Add to Cart Button
+                const button = document.createElement('button');
+                // NEW: Add a data-item-id to sync with cart
+                button.setAttribute('data-item-id', item.id);
+                button.className = `flex-shrink-0 w-10 h-10 rounded-full transition-all duration-200 ease-in-out ${isInCart ? 'bg-green-500 text-white' : 'bg-purple-100 text-purple-700 hover:bg-purple-600 hover:text-white'}`;
+                button.innerHTML = isInCart ? '✔' : '+';
+                button.title = isInCart ? 'Remove from cart' : 'Add to cart';
+                
+                button.addEventListener('click', (e) => {
+                    e.currentTarget.classList.add('pulse-once'); // Pulse animation
+                    e.currentTarget.addEventListener('animationend', () => e.currentTarget.classList.remove('pulse-once'));
+                    toggleCartItem(item);
+                    
+                    // Re-render this specific button's state
+                    const stillInCart = cart.some(cartItem => cartItem.id === item.id);
+                    if (stillInCart) {
+                        button.className = 'flex-shrink-0 w-10 h-10 rounded-full transition-all duration-200 ease-in-out bg-green-500 text-white';
+                        button.innerHTML = '✔';
+                        button.title = 'Remove from cart';
+                    } else {
+                        button.className = 'flex-shrink-0 w-10 h-10 rounded-full transition-all duration-200 ease-in-out bg-purple-100 text-purple-700 hover:bg-purple-600 hover:text-white';
+                        button.innerHTML = '+';
+                        button.title = 'Add to cart';
+                    }
+                });
+                
+                card.innerHTML = iconHtml + contentHtml;
+                card.appendChild(button);
+                resultsList.appendChild(card);
+            });
+        }
+
+        // --- Cart Logic ---
+
+        /**
+         * Parses a price string (e.g., "₹50.00") into a float
+         */
+        function parsePrice(priceStr) {
+            if (typeof priceStr !== 'string') return null;
+            const match = priceStr.match(/[\d\.]+/);
+            if (match && match[0]) {
+                return parseFloat(match[0]);
+            }
+            return null;
+        }
+
+        /**
+         * Processes a product found in a search, adds/updates it in our "memory"
+         */
+        function processFoundProduct(product, searchTerm) { // <-- ADD searchTerm
+            // DEFENSIVE: Ensure item is valid
+            if (!product || !product.productName || !product.platform) {
+                return;
+            }
+            
+            // Give item a unique ID based on its content (now including size)
+            const size = product.size || 'N/A';
+            product.id = btoa(product.productName + product.platform + size); // Base64 ID
+            product.priceFloat = parsePrice(product.price);
+            product.searchTerm = searchTerm || product.productName; // <-- ADD THE SEARCH TERM
+            
+            // Check if we've already found this *exact* item
+            const existingIndex = allFoundProducts.findIndex(p => p.id === product.id);
+            if (existingIndex > -1) {
+                // Update price if it's newer
+                allFoundProducts[existingIndex] = product;
+            } else {
+                allFoundProducts.push(product);
+            }
+        }
+
+        /**
+         * Adds or removes an item from the cart
+         */
+        function toggleCartItem(item) {
+            const index = cart.findIndex(cartItem => cartItem.id === item.id);
+            if (index > -1) {
+                // Item is in cart, remove it
+                cart.splice(index, 1);
+            } else {
+                // Item is not in cart, add it
+                cart.push(item);
+            }
+            updateCartSummary();
+        }
+
+        /**
+         * Updates the entire cart summary UI
+         */
+        function updateCartSummary() {
+            if (cart.length === 0) {
+                cartSummaryContainer.classList.add('hidden');
+                return;
+            }
+
+            cartSummaryContainer.classList.remove('hidden');
+            
+            let totalCartValue = 0;
+            const platformTotals = {};
+            const platformsInCart = new Set();
+
+            // NEW: Get cart items list container
+            const cartItemsList = document.getElementById('cart-items-list');
+            cartItemsList.innerHTML = ''; // Clear old items
+
+            // Calculate totals & POPULATE CART ITEMS LIST
+            cart.forEach(item => {
+                platformsInCart.add(item.platform);
+                
+                if (item.priceFloat !== null) {
+                    totalCartValue += item.priceFloat;
+                    // Initialize platform total if it doesn't exist
+                    if (!platformTotals[item.platform]) {
+                        platformTotals[item.platform] = 0;
+                    }
+                    platformTotals[item.platform] += item.priceFloat;
+                }
+
+                // NEW: Add item to the visible cart list
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'flex justify-between items-center bg-white p-2 rounded-lg';
+                itemDiv.innerHTML = `
+                    <div class="flex-1 min-w-0">
+                        <p class="text-sm font-semibold text-gray-800 truncate" title="${item.productName} (${item.size || 'N/A'})">
+                            ${item.productName} <span class="text-gray-500">(${item.size || 'N/A'})</span>
+                        </p>
+                        <p class="text-xs text-gray-600">${item.platform} - <span class="font-medium">₹${item.priceFloat ? item.priceFloat.toFixed(2) : 'N/A'}</span></p>
+                    </div>
+                    <button data-id="${item.id}" class="remove-from-cart-btn flex-shrink-0 w-7 h-7 ml-2 bg-red-100 text-red-700 rounded-full hover:bg-red-200 transition-colors">
+                        &times;
+                    </button>
+                `;
+                cartItemsList.appendChild(itemDiv);
+            });
+
+            // NEW: Add event listeners for the remove buttons
+            document.querySelectorAll('.remove-from-cart-btn').forEach(button => {
+                button.addEventListener('click', () => {
+                    const itemId = button.dataset.id;
+                    const itemToToggle = cart.find(i => i.id === itemId);
+                    if (itemToToggle) {
+                        toggleCartItem(itemToToggle); // This will remove the item and re-call updateCartSummary
+                        
+                        // We also need to deselect the button on the main product card page
+                        const cardButton = document.querySelector(`button[data-item-id="${itemId}"]`);
+                        if (cardButton) {
+                            cardButton.className = 'flex-shrink-0 w-10 h-10 rounded-full transition-all duration-200 ease-in-out bg-purple-100 text-purple-700 hover:bg-purple-600 hover:text-white';
+                            cardButton.innerHTML = '+';
+                            cardButton.title = 'Add to cart';
+                        }
+                    }
+                });
+            });
+
+            // Update Total Cart Value display
+            totalCartValueDisplay.innerText = `Total Cart Value: ₹${totalCartValue.toFixed(2)}`;
+
+            // Update Platform Subtotals display
+            platformTotalsList.innerHTML = '';
+            let cheapestPlatform = null;
+            let minPrice = Infinity;
+
+            // Handle empty or all-N/A-price totals
+            if (Object.keys(platformTotals).length === 0) {
+                 platformTotalsList.innerHTML = `<div class="p-3 rounded-lg bg-white italic text-gray-500">No prices available for items in cart.</div>`;
+            } else {
+                for (const [platform, total] of Object.entries(platformTotals)) {
+                    const isCheapest = total < minPrice;
+                    if (isCheapest) {
+                        minPrice = total;
+                        cheapestPlatform = platform;
+                    }
+                    
+                    const div = document.createElement('div');
+                    div.className = `flex justify-between items-center p-3 rounded-lg ${isCheapest ? 'bg-green-100' : 'bg-white'}`;
+                    div.innerHTML = `
+                        <span class="font-semibold ${isCheapest ? 'text-green-800' : 'text-gray-700'}">${platform}:</span>
+                        <span class="font-bold ${isCheapest ? 'text-green-800' : 'text-gray-900'}">
+                            ₹${total.toFixed(2)}
+                            ${isCheapest ? ' (Cheapest)' : ''}
+                        </span>
+                    `;
+                    platformTotalsList.appendChild(div);
+                }
+            }
+
+            // Update Suggestion Box
+            updateSmartSuggestion(platformsInCart);
+            
+            // Clear old full cart comparison
+            fullCartComparisonBox.classList.add('hidden');
+            fullCartComparisonList.innerHTML = '';
+        }
+
+        /**
+         * Generates and displays the "Smart Suggestion"
+         */
+        function updateSmartSuggestion(platformsInCart) {
+            // Find potential savings
+            let bestSavings = 0;
+            let bestPlatform = null;
+            const allOtherPlatforms = new Set(allFoundProducts.map(p => p.platform));
+
+            // For each platform...
+            allOtherPlatforms.forEach(platform => {
+                if (platformsInCart.has(platform)) return; // Don't compare a platform to itself
+
+                let potentialSavings = 0;
+                // ...check against each item in our cart
+                cart.forEach(cartItem => {
+                    if (cartItem.priceFloat === null) return; // Can't compare N/A items
+
+                    // Find the *same* product (by name AND size) on the *other* platform
+                    // LOGIC UPGRADE: Use searchTerm, not productName
+                    const competitor = allFoundProducts.find(p => 
+                        p.searchTerm === cartItem.searchTerm && // <-- USE searchTerm
+                        (p.size === cartItem.size || !p.size || !cartItem.size) && // Match size if available
+                        p.platform === platform &&
+                        p.priceFloat !== null
+                    );
+                    
+                    if (competitor) {
+                        const saving = cartItem.priceFloat - competitor.priceFloat;
+                        if (saving > 0) {
+                            potentialSavings += saving;
+                        }
+                    }
+                });
+
+                if (potentialSavings > bestSavings) {
+                    bestSavings = potentialSavings;
+                    bestPlatform = platform;
+                }
+            });
+
+            // Display the best suggestion
+            if (bestSavings > 0) {
+                suggestionBox.innerHTML = `✨ **Suggestion:** You could save ~**₹${bestSavings.toFixed(2)}** by getting some of these items on **${bestPlatform}** instead!`;
+                suggestionBox.classList.remove('hidden');
+            } else if (platformsInCart.size === 1) {
+                const platformName = platformsInCart.values().next().value;
+                suggestionBox.innerHTML = `✨ **Suggestion:** Your cart is all from **${platformName}**. To find the best deal, search for these items again to see their prices on other platforms!`;
+                suggestionBox.classList.remove('hidden');
+            } else {
+                suggestionBox.classList.add('hidden');
+            }
+        }
+
+        /**
+         * Handles the "Find Cheapest Full Cart" button click
+         */
+        function handleFullCartCompare() {
+            fullCartComparisonList.innerHTML = ''; // Clear previous results
+            const allPlatforms = new Set(allFoundProducts.map(p => p.platform));
+            // Get unique cart items (by searchTerm AND size)
+            // LOGIC UPGRADE: Use searchTerm, not productName
+            const cartItems = [...new Map(cart.map(item => [item.searchTerm + item.size, item])).values()];
+            
+            const fullCartTotals = [];
+
+            // For each platform, calculate the total cost for the *entire* cart
+            allPlatforms.forEach(platform => {
+                let platformTotal = 0;
+                let missingItems = [];
+
+                cartItems.forEach(cartItem => {
+                    // Find this product (by name AND size) on this platform in our "memory"
+                    // LOGIC UPGRADE: Use searchTerm, not productName
+                    const product = allFoundProducts.find(p => 
+                        p.searchTerm === cartItem.searchTerm && // <-- USE searchTerm
+                        (p.size === cartItem.size || !p.size || !cartItem.size) && // Match size
+                        p.platform === platform &&
+                        p.priceFloat !== null
+                    );
+                    
+                    if (product) {
+                        platformTotal += product.priceFloat;
+                    } else {
+                        missingItems.push(`${cartItem.productName} (${cartItem.size || 'N/A'})`);
+                    }
+                });
+                
+                fullCartTotals.push({
+                    platform: platform,
+                    total: platformTotal,
+                    missing: missingItems
+                });
+            });
+
+            // Sort to find cheapest (and penalize missing items)
+            fullCartTotals.sort((a, b) => {
+                if (a.missing.length !== b.missing.length) {
+                    return a.missing.length - b.missing.length; // Fewer missing items wins
+                }
+                return a.total - b.total; // Then, cheapest price wins
+            });
+            
+            // Display the full cart comparison
+            fullCartTotals.forEach((item, index) => {
+                const isCheapest = index === 0;
+                const div = document.createElement('div');
+                // BUG FIX: Changed `div.class` to `div.className`
+                div.className = `flex justify-between items-center p-3 rounded-lg ${isCheapest ? 'bg-green-100' : 'bg-white'}`;
+                
+                let missingTag = '';
+                if (item.missing.length > 0) {
+                    const missingList = item.missing.join(', ');
+                    missingTag = `
+                        <span class="tooltip ml-2 px-2 py-0.5 bg-red-100 text-red-800 text-xs font-semibold rounded-full cursor-help">
+                            ${item.missing.length} missing
+                            <span class="tooltiptext">Missing: ${missingList}</span>
+                        </span>
+                    `;
+                }
+
+                div.innerHTML = `
+                    <div>
+                        <span class="font-semibold ${isCheapest ? 'text-green-800' : 'text-gray-700'}">${item.platform}:</span>
+                        ${missingTag}
+                    </div>
+                    <span class="font-bold ${isCheapest ? 'text-green-800' : 'text-gray-900'}">
+                        ₹${item.total.toFixed(2)}
+                        ${isCheapest ? ' (Cheapest)' : ''}
+                    </span>
+                `;
+                fullCartComparisonList.appendChild(div);
+            });
+
+            fullCartComparisonBox.classList.remove('hidden');
+        }
+
+
+        // --- UI Helper Functions ---
+
+        function showLoading(isLoading) {
+            if (isLoading) {
+                loadingSpinner.classList.remove('hidden');
+                loadingSpinner.classList.add('flex');
+                searchButton.disabled = true;
+                searchButton.classList.add('opacity-50', 'cursor-not-allowed');
+            } else {
+                loadingSpinner.classList.add('hidden');
+                loadingSpinner.classList.remove('flex');
+                searchButton.disabled = false;
+                searchButton.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+        }
+
+        function showError(message) {
+            errorMessage.innerText = message;
+            errorMessage.classList.remove('hidden');
+        }
+
+        function clearResults() {
+            errorMessage.classList.add('hidden');
+            summarySection.classList.add('hidden');
+            resultsSection.classList.add('hidden');
+            sourcesSection.classList.add('hidden');
+            disclaimer.classList.add('hidden');
+            resultsList.innerHTML = '';
+            sourcesList.innerHTML = '';
+            summaryText.innerText = '';
+            // Don't clear the full cart comparison, just in case
+            // fullCartComparisonBox.classList.add('hidden');
+            // fullCartComparisonList.innerHTML = '';
+        }
+
+    </script>
+</body>
+</html>
